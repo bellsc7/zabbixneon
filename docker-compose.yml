@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - ZABBIX_URL=http://192.168.1.25/zabbix/api_jsonrpc.php
+      - ZABBIX_USER=Admin
+      - ZABBIX_PASS=zabbix
+    networks:
+      - zabbix_net
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - zabbix_net
+
+networks:
+  zabbix_net:
+    driver: bridge

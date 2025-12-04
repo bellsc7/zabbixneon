@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zabbix Neon Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+
+        .neon-text {
+            text-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .glass-panel:hover {
+            border-color: rgba(56, 189, 248, 0.3);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.1);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+
+        /* Circular Progress */
+        .circular-chart {
+            display: block;
+            margin: 0 auto;
+            max-width: 80%;
+            max-height: 250px;
+        }
+
+        .circle-bg {
+            fill: none;
+            stroke: #1e293b;
+            stroke-width: 2.5;
+        }
+
+        .circle {
+            fill: none;
+            stroke-width: 2.5;
+            stroke-linecap: round;
+            transition: stroke-dasharray 1s ease-out;
+        }
+
+        .percentage {
+            fill: #fff;
+            font-family: 'Outfit', sans-serif;
+            font-weight: bold;
+            font-size: 0.5em;
+            text-anchor: middle;
+        }
+
+        .label {
+            fill: #94a3b8;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.15em;
+            text-anchor: middle;
+        }
+
+        /* Collapsible Transition */
+        .group-content {
+            transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+            max-height: 1000px;
+            /* Arbitrary large height */
+            opacity: 1;
+            overflow: hidden;
+        }
+
+        .group-content.collapsed {
+            max-height: 0;
+            opacity: 0;
+        }
+
+        .chevron {
+            transition: transform 0.3s ease;
+        }
+
+        .chevron.collapsed {
+            transform: rotate(-90deg);
+        }
+    </style>
+</head>
+
+<body class="h-screen flex overflow-hidden">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col z-20">
+        <div class="p-6 flex items-center gap-3">
+            <div
+                class="w-8 h-8 rounded bg-cyan-500 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.5)]">
+                <i class="fa-solid fa-bolt text-white"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold tracking-wider text-white leading-none">NET.MONITOR</h1>
+                <span class="text-[10px] text-cyan-400 tracking-widest">SYSTEM V.2.0</span>
+            </div>
+        </div>
+
+        <div class="px-4 mb-6">
+            <div class="relative">
+                <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
+                <input type="text" id="server-search" placeholder="Search servers..."
+                    class="w-full bg-slate-800 text-sm text-slate-300 rounded-lg pl-9 pr-3 py-2 focus:outline-none focus:ring-1 focus:ring-cyan-500 border border-slate-700">
+            </div>
+        </div>
+
+        <div class="px-4 mb-6 space-y-1">
+            <a href="#" onclick="showOverview(); return false;"
+                class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-cyan-400 bg-cyan-500/10 rounded-lg border border-cyan-500/20">
+                <i class="fa-solid fa-border-all"></i>
+                <span>OVERVIEW</span>
+            </a>
+            <a href="#"
+                class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
+                <i class="fa-solid fa-chart-pie"></i>
+                <span>REPORTS</span>
+            </a>
+        </div>
+
+        <div class="px-6 mb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">SERVERS LIST</div>
+
+        <nav class="flex-1 overflow-y-auto px-2 space-y-1" id="server-list">
+            <!-- Server Groups will be injected here -->
+        </nav>
+
+        <div class="p-4 border-t border-slate-800">
+            <div
+                class="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-slate-800 cursor-pointer transition-colors">
+                <div
+                    class="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 flex items-center justify-center">
+                    <span class="font-bold text-xs">AD</span>
+                </div>
+                <div>
+                    <div class="text-sm font-medium text-white">Admin User</div>
+                    <div class="text-xs text-slate-500">System Administrator</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col relative overflow-hidden">
+        <!-- Background Elements -->
+        <div class="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
+            <div class="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-purple-600/10 blur-[100px]">
+            </div>
+            <div class="absolute bottom-[-10%] left-[-5%] w-[500px] h-[500px] rounded-full bg-cyan-600/10 blur-[100px]">
+            </div>
+        </div>
+
+        <!-- Header -->
+        <header
+            class="h-20 border-b border-slate-800/50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-between px-8">
+            <div>
+                <div class="flex items-center gap-2 text-xs text-cyan-400 mb-1 cursor-pointer hover:underline"
+                    onclick="showOverview()">
+                    <i class="fa-solid fa-arrow-left"></i> Back to Overview
+                </div>
+                <div class="flex items-center gap-4">
+                    <h2 id="detail-hostname" class="text-2xl font-bold text-white tracking-wide">System Overview</h2>
+                    <div id="detail-status-badge"
+                        class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-purple-500 text-white">
+                        AI SUMMARY</div>
+                </div>
+                <div class="flex items-center gap-4 text-xs text-slate-400 mt-1">
+                    <span id="overview-stats" class="flex items-center gap-4">
+                        <!-- Injected via JS -->
+                    </span>
+                    <span id="detail-ip" class="flex items-center gap-1 hidden"><i
+                            class="fa-solid fa-network-wired"></i> 0.0.0.0</span>
+                    <span id="detail-os" class="flex items-center gap-1 hidden"><i class="fa-brands fa-linux"></i>
+                        Unknown OS</span>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <button
+                    class="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg transition-colors shadow-[0_0_15px_rgba(147,51,234,0.3)]">
+                    <i class="fa-solid fa-wand-magic-sparkles mr-2"></i>AI Analyze
+                </button>
+                <button
+                    class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium rounded-lg border border-slate-700 transition-colors">
+                    <i class="fa-solid fa-terminal mr-2"></i>Terminal
+                </button>
+                <button
+                    class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-orange-400 text-sm font-medium rounded-lg border border-slate-700 transition-colors">
+                    <i class="fa-solid fa-screwdriver-wrench mr-2"></i>Maint. Mode
+                </button>
+            </div>
+        </header>
+
+        <!-- Overview Content -->
+        <div id="overview-content" class="flex-1 p-8 overflow-y-auto space-y-6">
+
+            <!-- Critical Cards Row -->
+            <div class="flex gap-4 overflow-x-auto pb-4" id="critical-cards">
+                <!-- Injected via JS -->
+            </div>
+
+            <div class="grid grid-cols-3 gap-6">
+                <!-- Resource Utilization Heatmap -->
+                <div class="glass-panel rounded-2xl p-6 col-span-2">
+                    <h3 class="text-sm font-bold text-cyan-400 tracking-wider mb-4">RESOURCE UTILIZATION HEATMAP</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left text-slate-400">
+                            <thead class="text-xs text-slate-500 uppercase bg-slate-800/50">
+                                <tr>
+                                    <th class="px-4 py-3 rounded-l-lg">Server Name</th>
+                                    <th class="px-4 py-3">CPU Load</th>
+                                    <th class="px-4 py-3">Memory</th>
+                                    <th class="px-4 py-3">Disk Space</th>
+                                    <th class="px-4 py-3">Latency</th>
+                                    <th class="px-4 py-3 rounded-r-lg">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="heatmap-body">
+                                <!-- Injected via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Live Event Log & Global Stats -->
+                <div class="space-y-6 col-span-1">
+                    <!-- Global Health Score -->
+                    <div class="glass-panel rounded-2xl p-6 flex items-center justify-between">
+                        <div>
+                            <div class="text-sm font-bold text-slate-400 tracking-wider">GLOBAL HEALTH</div>
+                            <div class="text-3xl font-bold text-white mt-1" id="global-health">98%</div>
+                        </div>
+                        <div class="w-16 h-16 relative">
+                            <svg class="w-full h-full" viewBox="0 0 36 36">
+                                <path class="text-slate-800"
+                                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                    fill="none" stroke="currentColor" stroke-width="4" />
+                                <path class="text-emerald-500" stroke-dasharray="98, 100"
+                                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                    fill="none" stroke="currentColor" stroke-width="4" />
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- Live Event Log -->
+                    <div class="glass-panel rounded-2xl p-6 flex-1 flex flex-col h-[400px]">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-sm font-bold text-slate-400 tracking-wider">LIVE EVENT LOG</h3>
+                            <span class="text-[10px] bg-slate-800 px-2 py-1 rounded text-slate-400">LAST 1H</span>
+                        </div>
+                        <div class="flex-1 overflow-y-auto space-y-2 pr-2" id="event-log">
+                            <!-- Injected via JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Content (Server Detail) -->
+        <div id="dashboard-content"
+            class="flex-1 p-8 overflow-y-auto grid grid-cols-4 gap-6 grid-rows-[300px_200px_250px_150px] hidden">
+
+            <!-- Row 1: Health & Network -->
+            <div class="glass-panel rounded-2xl p-6 flex flex-col items-center justify-center relative col-span-1">
+                <h3 class="absolute top-6 left-6 text-sm font-bold text-cyan-400 tracking-wider">HEALTH SCORE</h3>
+                <div class="relative w-full h-full flex items-center justify-center">
+                    <svg viewBox="0 0 36 36" class="circular-chart">
+                        <path class="circle-bg"
+                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        <path class="circle" id="health-circle" stroke-dasharray="0, 100"
+                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                            stroke="#10b981" />
+                        <text x="18" y="20.35" class="percentage" id="health-score-text">0%</text>
+                        <text x="18" y="25" class="label" id="health-label">EXCELLENT</text>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="glass-panel rounded-2xl p-6 col-span-3 flex flex-col">
+                <div class="flex justify-between items-start mb-4">
+                    <h3 class="text-sm font-bold text-cyan-400 tracking-wider mb-1">NETWORK I/O</h3>
+                    <div class="flex gap-4 text-xs">
+                        <span class="flex items-center gap-1 text-cyan-400">
+                            <div class="w-2 h-2 rounded-full bg-cyan-400"></div> Rx
+                        </span>
+                        <span class="flex items-center gap-1 text-purple-400">
+                            <div class="w-2 h-2 rounded-full bg-purple-400"></div> Tx
+                        </span>
+                    </div>
+                </div>
+                <div class="flex-1 w-full h-full relative">
+                    <div id="network-loader"
+                        class="absolute inset-0 flex items-center justify-center bg-slate-900/50 z-10 hidden">
+                        <span class="text-cyan-400 text-sm animate-pulse">WAITING FOR DATA...</span>
+                    </div>
+                    <canvas id="networkChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Row 2: Core Metrics -->
+            <div class="glass-panel rounded-2xl p-6 col-span-1 flex flex-col">
+                <h3 class="text-sm font-bold text-slate-400 tracking-wider mb-4">Disk Usage</h3>
+                <div class="flex-1 overflow-y-auto pr-2" id="disk-list"></div>
+            </div>
+
+            <div class="glass-panel rounded-2xl p-5 col-span-1 flex flex-col">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="text-sm font-bold text-slate-400 tracking-wider">CPU Load</h3>
+                    <span class="text-lg font-bold text-cyan-400" id="cpu-value">0% <i
+                            class="fa-solid fa-microchip ml-1"></i></span>
+                </div>
+                <div class="flex-1 w-full relative">
+                    <div id="cpu-loader"
+                        class="absolute inset-0 flex items-center justify-center bg-slate-900/50 z-10 hidden">
+                        <span class="text-emerald-400 text-xs animate-pulse">WAITING FOR DATA...</span>
+                    </div>
+                    <canvas id="cpuChart"></canvas>
+                </div>
+            </div>
+
+            <div class="glass-panel rounded-2xl p-5 col-span-1 flex flex-col items-center justify-center relative">
+                <h3 class="absolute top-5 left-5 text-sm font-bold text-slate-400 tracking-wider">Memory</h3>
+                <div class="absolute top-5 right-5 text-pink-400"><i class="fa-solid fa-server"></i></div>
+                <div class="relative w-32 h-32">
+                    <canvas id="memoryChart"></canvas>
+                    <div class="absolute inset-0 flex items-center justify-center flex-col pointer-events-none">
+                        <span class="text-xl font-bold text-white" id="ram-value">0%</span>
+                        <span class="text-[10px] text-slate-400">USED</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-panel rounded-2xl p-5 col-span-1 flex flex-col justify-between">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-sm font-bold text-slate-400 tracking-wider">Latency</h3>
+                    <span class="text-lg font-bold text-white" id="latency-value">0ms <i
+                            class="fa-solid fa-bolt text-yellow-400 ml-1"></i></span>
+                </div>
+                <div class="flex-1 w-full relative mt-2">
+                    <div id="latency-loader"
+                        class="absolute inset-0 flex items-center justify-center bg-slate-900/50 z-10 hidden">
+                        <span class="text-purple-400 text-xs animate-pulse">WAITING...</span>
+                    </div>
+                    <canvas id="latencyChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Row 3: Active Alerts & Disk I/O -->
+            <div class="glass-panel rounded-2xl p-6 col-span-2 flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-sm font-bold text-slate-400 tracking-wider"><i
+                            class="fa-solid fa-triangle-exclamation text-orange-400 mr-2"></i>ACTIVE ALERTS</h3>
+                    <span
+                        class="bg-orange-500/20 text-orange-400 text-xs px-2 py-0.5 rounded border border-orange-500/30">Live</span>
+                </div>
+                <div class="flex-1 overflow-y-auto pr-2 space-y-3" id="alerts-list"></div>
+            </div>
+
+            <div class="glass-panel rounded-2xl p-6 col-span-2 flex flex-col">
+                <h3 class="text-sm font-bold text-slate-400 tracking-wider mb-4">DISK I/O</h3>
+                <div class="flex-1 w-full h-full relative">
+                    <canvas id="diskIoChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Row 4: System Info -->
+            <div class="glass-panel rounded-2xl p-6 col-span-4 flex flex-col justify-center">
+                <h3 class="text-sm font-bold text-slate-400 tracking-wider mb-3"><i
+                        class="fa-solid fa-circle-info text-blue-400 mr-2"></i>SYSTEM INFORMATION</h3>
+                <div class="grid grid-cols-5 gap-8" id="system-info-list"></div>
+            </div>
+        </div>
+
+        <!-- Empty State (Hidden) -->
+        <div id="empty-state" class="flex-1 flex flex-col items-center justify-center text-slate-500 hidden">
+            <i class="fa-solid fa-server text-6xl mb-4 opacity-20"></i>
+            <p class="text-lg">Select a server from the sidebar to view metrics</p>
+        </div>
+
+    </main>
+
+    <script>
+        // --- Configuration ---
+        const API_URL = "http://localhost:8000/api";
+        let charts = {};
+        let currentServerId = null;
+        let refreshInterval = null;
+        let allServers = []; // Store all servers for overview
+        let collapsedGroups = {}; // Store collapsed state
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            loadServers();
+
+            // Search Filter
+            document.getElementById('server-search').addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase();
+                document.querySelectorAll('.server-item').forEach(item => {
+                    const name = item.dataset.name.toLowerCase();
+                    item.style.display = name.includes(term) ? 'flex' : 'none';
+                });
+
+                // Expand all groups when searching
+                if (term.length > 0) {
+                    document.querySelectorAll('.group-content').forEach(el => el.classList.remove('collapsed'));
+                    document.querySelectorAll('.chevron').forEach(el => el.classList.remove('collapsed'));
+                }
+            });
+
+            // Auto Refresh
+            setInterval(() => {
+                if (currentServerId) {
+                    updateCharts(currentServerId);
+                }
+                loadServers(false); // Refresh list for status updates
+            }, 30000);
+        });
+
+        function showOverview() {
+            currentServerId = null;
+            document.getElementById('dashboard-content').classList.add('hidden');
+            document.getElementById('empty-state').classList.add('hidden');
+            document.getElementById('overview-content').classList.remove('hidden');
+
+            // Reset selection
+            document.querySelectorAll('.server-item').forEach(i => {
+                i.classList.remove('bg-slate-800', 'border-cyan-500');
+                i.classList.add('border-transparent');
+            });
+
+            // Update Header
+            document.getElementById('detail-hostname').textContent = "System Overview";
+            document.getElementById('detail-status-badge').className = "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-purple-500 text-white";
+            document.getElementById('detail-status-badge').textContent = "AI SUMMARY";
+            document.getElementById('detail-ip').classList.add('hidden');
+            document.getElementById('detail-os').classList.add('hidden');
+            document.getElementById('overview-stats').classList.remove('hidden');
+
+            renderOverview(allServers);
+        }
+
+        function getOsIcon(server) {
+            const type = (server.type || '').toLowerCase();
+            const os = (server.os_info || '').toLowerCase();
+
+            if (type.includes('windows') || os.includes('windows')) return '<i class="fa-brands fa-windows"></i>';
+            if (type.includes('linux') || os.includes('linux') || os.includes('ubuntu') || os.includes('centos')) return '<i class="fa-brands fa-linux"></i>';
+            if (type.includes('switch') || type.includes('router')) return '<i class="fa-solid fa-network-wired"></i>';
+            if (type.includes('ap') || type.includes('wifi') || type.includes('ubiquiti')) return '<i class="fa-solid fa-wifi"></i>';
+            if (type.includes('firewall') || type.includes('fortigate')) return '<i class="fa-solid fa-shield-halved"></i>';
+
+            return '<i class="fa-solid fa-server"></i>';
+        }
+
+        function renderOverview(servers) {
+            // Stats
+            const onlineCount = servers.filter(s => s.status === 'online').length;
+            const alertCount = servers.reduce((acc, s) => acc + (s.alerts ? s.alerts.length : 0), 0);
+
+            document.getElementById('overview-stats').innerHTML = `
+                <span class="text-emerald-400 font-bold"><i class="fa-solid fa-circle text-[8px] mr-1"></i> ${onlineCount} ONLINE</span>
+                <span class="text-red-400 font-bold"><i class="fa-solid fa-circle text-[8px] mr-1"></i> ${alertCount} ALERTS</span>
+            `;
+
+            // Critical Cards
+            const criticalCards = document.getElementById('critical-cards');
+            criticalCards.innerHTML = '';
+
+            // Define Critical: Offline OR CPU > 90 OR RAM > 90
+            const criticalServers = servers.filter(s =>
+                s.status !== 'online' || (s.cpu && s.cpu > 90) || (s.ram && s.ram > 90)
+            );
+
+            if (criticalServers.length === 0) {
+                criticalCards.innerHTML = `
+                    <div class="glass-panel rounded-xl p-4 w-64 flex-shrink-0 border-l-4 border-emerald-500">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                                <i class="fa-solid fa-check"></i>
+                            </div>
+                            <div>
+                                <div class="text-sm font-bold text-white">All Systems Normal</div>
+                                <div class="text-xs text-slate-400">No critical issues detected</div>
+                            </div>
+                        </div>
+                    </div>
+                 `;
+            } else {
+                criticalServers.forEach(s => {
+                    let issue = "OFFLINE";
+                    let color = "red";
+                    let val = "";
+
+                    if (s.status === 'online') {
+                        if (s.cpu > 90) { issue = "CRITICAL CPU"; val = Math.round(s.cpu) + "%"; }
+                        else if (s.ram > 90) { issue = "CRITICAL RAM"; val = Math.round(s.ram) + "%"; }
+                    }
+
+                    const card = document.createElement('div');
+                    card.className = `glass-panel rounded-xl p-4 w-64 flex-shrink-0 border-l-4 border-${color}-500 cursor-pointer hover:bg-slate-800 transition-colors`;
+                    card.onclick = () => selectServer(s, null);
+                    card.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="text-xs font-bold text-${color}-400 uppercase tracking-wider"><i class="fa-solid fa-microchip mr-1"></i> ${issue}</div>
+                            <div class="text-lg font-bold text-white">${val}</div>
+                        </div>
+                        <div class="text-sm font-bold text-white truncate">${s.name}</div>
+                        <div class="text-xs text-slate-500 truncate">${s.ip}</div>
+                    `;
+                    criticalCards.appendChild(card);
+                });
+            }
+
+            // Heatmap
+            const heatmapBody = document.getElementById('heatmap-body');
+            heatmapBody.innerHTML = '';
+            servers.forEach(s => {
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-slate-800 hover:bg-slate-800/50 transition-colors cursor-pointer";
+                tr.onclick = () => selectServer(s, null);
+
+                // Color Logic
+                const cpuColor = !s.cpu ? 'text-slate-500' : s.cpu > 80 ? 'text-red-400' : s.cpu > 50 ? 'text-orange-400' : 'text-emerald-400';
+                const ramColor = !s.ram ? 'text-slate-500' : s.ram > 80 ? 'text-red-400' : s.ram > 50 ? 'text-orange-400' : 'text-emerald-400';
+
+                let diskUsage = 0;
+                if (s.disks && s.disks.length > 0) diskUsage = s.disks[0].usage;
+                const diskColor = diskUsage > 90 ? 'text-red-400' : diskUsage > 70 ? 'text-orange-400' : 'text-blue-400';
+
+                const statusBadge = s.status === 'online'
+                    ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400">ONLINE</span>'
+                    : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-400">OFFLINE</span>';
+
+                // Latency Display Logic
+                let latDisplay = 'N/A';
+                if (s.latency !== undefined && s.latency !== null) {
+                    latDisplay = (s.latency < 1 ? s.latency.toFixed(2) : Math.round(s.latency)) + 'ms';
+                }
+
+                tr.innerHTML = `
+                    <td class="px-4 py-3 font-medium text-white">${s.name}</td>
+                    <td class="px-4 py-3 ${cpuColor}">${s.cpu ? Math.round(s.cpu) + '%' : 'N/A'}</td>
+                    <td class="px-4 py-3 ${ramColor}">${s.ram ? Math.round(s.ram) + '%' : 'N/A'}</td>
+                    <td class="px-4 py-3 ${diskColor}">${diskUsage ? Math.round(diskUsage) + '%' : 'N/A'}</td>
+                    <td class="px-4 py-3 text-slate-300">${latDisplay}</td>
+                    <td class="px-4 py-3">${statusBadge}</td>
+                `;
+                heatmapBody.appendChild(tr);
+            });
+
+            // Global Health Score
+            let totalScore = 0;
+            let count = 0;
+            servers.forEach(s => {
+                if (s.status === 'online') {
+                    let score = 100;
+                    if (s.cpu > 90) score -= 30;
+                    else if (s.cpu > 80) score -= 15;
+
+                    if (s.ram > 90) score -= 30;
+                    else if (s.ram > 80) score -= 15;
+
+                    if (s.disks && s.disks.length > 0) {
+                        let maxDisk = 0;
+                        s.disks.forEach(d => { if (d.usage > maxDisk) maxDisk = d.usage; });
+                        if (maxDisk > 90) score -= 30;
+                        else if (maxDisk > 80) score -= 15;
+                    }
+                    if (score < 0) score = 0;
+                    totalScore += score;
+                    count++;
+                }
+            });
+            const avgHealth = count > 0 ? Math.round(totalScore / count) : 0;
+            document.getElementById('global-health').textContent = avgHealth + "%";
+
+            // Event Log
+            const eventLog = document.getElementById('event-log');
+            eventLog.innerHTML = '';
+            const allAlerts = [];
+            servers.forEach(s => {
+                if (s.alerts) {
+                    s.alerts.forEach(a => allAlerts.push({ ...a, server: s.name }));
+                }
+            });
+
+            if (allAlerts.length === 0) {
+                eventLog.innerHTML = '<div class="text-center text-slate-500 py-4">No recent events</div>';
+            } else {
+                allAlerts.forEach(a => {
+                    const div = document.createElement('div');
+                    div.className = "text-xs border-l-2 border-red-500 pl-3 py-1";
+                    div.innerHTML = `
+                        <span class="text-slate-500">[Just Now]</span> 
+                        <span class="text-red-400 font-bold">Alert</span> 
+                        <span class="text-slate-300">on ${a.server}: ${a.description}</span>
+                    `;
+                    eventLog.appendChild(div);
+                });
+            }
+        }
+
+        // --- Chart.js Setup ---
+        function initCharts() {
+            Chart.defaults.color = '#94a3b8';
+            Chart.defaults.font.family = "'Outfit', sans-serif";
+
+            const gridOptions = {
+                color: 'rgba(255, 255, 255, 0.05)',
+                borderColor: 'rgba(255, 255, 255, 0.1)'
+            };
+
+            // Network Chart
+            const ctxNet = document.getElementById('networkChart').getContext('2d');
+            const gradNetIn = ctxNet.createLinearGradient(0, 0, 0, 400);
+            gradNetIn.addColorStop(0, 'rgba(34, 211, 238, 0.5)');
+            gradNetIn.addColorStop(1, 'rgba(34, 211, 238, 0)');
+
+            const gradNetOut = ctxNet.createLinearGradient(0, 0, 0, 400);
+            gradNetOut.addColorStop(0, 'rgba(192, 132, 252, 0.5)');
+            gradNetOut.addColorStop(1, 'rgba(192, 132, 252, 0)');
+
+            charts.network = new Chart(ctxNet, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Rx',
+                            data: [],
+                            borderColor: '#22d3ee',
+                            backgroundColor: gradNetIn,
+                            fill: true,
+                            tension: 0.4,
+                            borderWidth: 2,
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'Tx',
+                            data: [],
+                            borderColor: '#c084fc',
+                            backgroundColor: gradNetOut,
+                            fill: true,
+                            tension: 0.4,
+                            borderWidth: 2,
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { display: true, grid: gridOptions, ticks: { display: true, maxTicksLimit: 8, color: '#64748b' } },
+                        y: { display: true, grid: gridOptions }
+                    },
+                    interaction: { mode: 'index', intersect: false }
+                }
+            });
+
+            // CPU Chart
+            const ctxCpu = document.getElementById('cpuChart').getContext('2d');
+            const gradCpu = ctxCpu.createLinearGradient(0, 0, 0, 200);
+            gradCpu.addColorStop(0, 'rgba(16, 185, 129, 0.5)');
+            gradCpu.addColorStop(1, 'rgba(16, 185, 129, 0)');
+
+            charts.cpu = new Chart(ctxCpu, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        borderColor: '#10b981',
+                        backgroundColor: gradCpu,
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { display: true, grid: gridOptions, ticks: { display: true, maxTicksLimit: 8, color: '#64748b' } },
+                        y: { display: true, min: 0, max: 100, grid: gridOptions }
+                    }
+                }
+            });
+
+            // Memory Chart (Doughnut)
+            const ctxMem = document.getElementById('memoryChart').getContext('2d');
+            charts.memory = new Chart(ctxMem, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Used', 'Free'],
+                    datasets: [{
+                        data: [0, 100],
+                        backgroundColor: ['#f472b6', 'rgba(255, 255, 255, 0.05)'],
+                        borderWidth: 0,
+                        cutout: '80%'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } }
+                }
+            });
+
+            // Latency Chart (Line)
+            const ctxLat = document.getElementById('latencyChart').getContext('2d');
+            const gradLat = ctxLat.createLinearGradient(0, 0, 0, 100);
+            gradLat.addColorStop(0, 'rgba(192, 132, 252, 0.5)');
+            gradLat.addColorStop(1, 'rgba(192, 132, 252, 0)');
+
+            charts.latency = new Chart(ctxLat, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        borderColor: '#c084fc',
+                        backgroundColor: gradLat,
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { display: true, grid: gridOptions, ticks: { display: true, maxTicksLimit: 4, color: '#64748b', maxRotation: 0, autoSkip: true } },
+                        y: { display: true, grid: gridOptions, ticks: { callback: function (value) { return value.toFixed(2) + 'ms'; } } }
+                    }
+                }
+            });
+
+            // Disk I/O Chart
+            const ctxDiskIo = document.getElementById('diskIoChart').getContext('2d');
+            charts.diskIo = new Chart(ctxDiskIo, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Read',
+                            data: [],
+                            borderColor: '#3b82f6',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Write',
+                            data: [],
+                            borderColor: '#f97316',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: true, labels: { color: '#94a3b8', font: { size: 10 } } } },
+                    scales: {
+                        x: { display: true, grid: gridOptions, ticks: { display: true, maxTicksLimit: 8, color: '#64748b' } },
+                        y: { display: true, grid: gridOptions }
+                    },
+                    interaction: { mode: 'index', intersect: false }
+                }
+            });
+        }
+
+        // --- Data Fetching ---
+        async function loadServers(render = true) {
+            try {
+                const res = await fetch(`${API_URL}/servers`);
+                const servers = await res.json();
+                allServers = servers; // Store for overview
+
+                if (render) renderServerList(servers);
+
+                // If currently on overview, re-render it
+                if (!currentServerId) {
+                    renderOverview(servers);
+                }
+            } catch (err) {
+                console.error("Failed to load servers:", err);
+            }
+        }
+
+        function renderServerList(servers) {
+            const list = document.getElementById('server-list');
+            list.innerHTML = '';
+
+            // Group by Type
+            const groups = servers.reduce((acc, s) => {
+                acc[s.type] = acc[s.type] || [];
+                acc[s.type].push(s);
+                return acc;
+            }, {});
+
+            // Custom Order
+            const order = ['Windows', 'Linux', 'VMware', 'Firewall', 'Switch', 'AP', 'Unknown'];
+
+            order.forEach(type => {
+                if (groups[type]) {
+                    // Group Container
+                    const groupContainer = document.createElement('div');
+                    groupContainer.className = "mb-2";
+
+                    // Group Header
+                    const header = document.createElement('div');
+                    header.className = "px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-slate-800 rounded-lg transition-colors group";
+
+                    // Check collapsed state
+                    const isCollapsed = collapsedGroups[type] || false;
+
+                    header.innerHTML = `
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider group-hover:text-cyan-400 transition-colors">${type}</span>
+                        <i class="fa-solid fa-chevron-down text-[10px] text-slate-600 chevron ${isCollapsed ? 'collapsed' : ''}"></i>
+                    `;
+
+                    // Toggle Logic
+                    header.onclick = () => {
+                        collapsedGroups[type] = !collapsedGroups[type];
+                        const content = groupContainer.querySelector('.group-content');
+                        const icon = header.querySelector('.chevron');
+
+                        if (collapsedGroups[type]) {
+                            content.classList.add('collapsed');
+                            icon.classList.add('collapsed');
+                        } else {
+                            content.classList.remove('collapsed');
+                            icon.classList.remove('collapsed');
+                        }
+                    };
+
+                    groupContainer.appendChild(header);
+
+                    // Group Content
+                    const content = document.createElement('div');
+                    content.className = `group-content ${isCollapsed ? 'collapsed' : ''}`;
+
+                    groups[type].forEach(server => {
+                        const item = document.createElement('div');
+                        item.className = `server-item flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all hover:bg-slate-800 border-l-2 border-transparent ${currentServerId === server.id ? 'bg-slate-800 border-cyan-500' : ''}`;
+                        item.dataset.name = server.name;
+                        item.onclick = () => selectServer(server, item);
+
+                        // Status Dot
+                        let statusColor = "bg-gray-500";
+                        if (server.status === 'online') statusColor = "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]";
+                        else if (server.status === 'offline') statusColor = "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]";
+
+                        item.innerHTML = `
+                            <div class="w-2 h-2 rounded-full ${statusColor}"></div>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-sm font-medium text-white truncate">${server.name}</div>
+                                <div class="text-xs text-slate-500 truncate">${server.ip}</div>
+                            </div>
+                            <div class="text-xs font-bold ${server.cpu > 80 ? 'text-red-400' : 'text-slate-600'}">
+                                ${server.cpu !== null ? Math.round(server.cpu) + '%' : ''}
+                            </div>
+                        `;
+                        content.appendChild(item);
+                    });
+
+                    groupContainer.appendChild(content);
+                    list.appendChild(groupContainer);
+                }
+            });
+        }
+
+        function selectServer(server, el) {
+            currentServerId = server.id;
+
+            // Highlight UI
+            document.querySelectorAll('.server-item').forEach(i => {
+                i.classList.remove('bg-slate-800', 'border-cyan-500');
+                i.classList.add('border-transparent');
+            });
+
+            // Handle sidebar highlight if el is provided
+            if (el) {
+                el.classList.remove('border-transparent');
+                el.classList.add('bg-slate-800', 'border-cyan-500');
+            } else {
+                // Find sidebar item by name and highlight it
+                const sidebarItem = Array.from(document.querySelectorAll('.server-item')).find(i => i.dataset.name === server.name);
+                if (sidebarItem) {
+                    sidebarItem.classList.remove('border-transparent');
+                    sidebarItem.classList.add('bg-slate-800', 'border-cyan-500');
+                    // Ensure parent group is expanded
+                    const groupContent = sidebarItem.closest('.group-content');
+                    if (groupContent && groupContent.classList.contains('collapsed')) {
+                        // Find header and trigger click to expand
+                        const header = groupContent.previousElementSibling;
+                        if (header) header.click();
+                    }
+                    setTimeout(() => {
+                        sidebarItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 300);
+                }
+            }
+
+            // Show Dashboard
+            document.getElementById('empty-state').classList.add('hidden');
+            document.getElementById('overview-content').classList.add('hidden');
+            document.getElementById('dashboard-content').classList.remove('hidden');
+
+            // Update Header Visibility
+            document.getElementById('overview-stats').classList.add('hidden');
+            document.getElementById('detail-ip').classList.remove('hidden');
+            document.getElementById('detail-os').classList.remove('hidden');
+
+            loadServerDetail(server);
+        }
+
+        function loadServerDetail(server) {
+            // Update Header
+            document.getElementById('detail-hostname').textContent = server.name;
+            document.getElementById('detail-ip').innerHTML = `<i class="fa-solid fa-network-wired"></i> ${server.ip}`;
+
+            // OS Icon Logic
+            const osIcon = getOsIcon(server);
+            document.getElementById('detail-os').innerHTML = `${osIcon} ${server.os_info || 'Unknown OS'}`;
+
+            // Update Status Badge
+            const statusBadge = document.getElementById('detail-status-badge');
+
+            if (server.status === 'online') {
+                statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-500 text-white shadow-[0_0_10px_rgba(16,185,129,0.4)]";
+                statusBadge.textContent = "ONLINE";
+            } else if (server.status === 'offline') {
+                statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-red-500 text-white";
+                statusBadge.textContent = "OFFLINE";
+            } else {
+                statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-gray-500 text-white";
+                statusBadge.textContent = "UNKNOWN";
+            }
+
+            // Update Health Score (Circular)
+            let score = 100;
+
+            // CPU Penalty
+            if (server.cpu > 90) score -= 30;
+            else if (server.cpu > 80) score -= 15;
+
+            // RAM Penalty
+            if (server.ram > 90) score -= 30;
+            else if (server.ram > 80) score -= 15;
+
+            // Disk Penalty (Check all disks)
+            if (server.disks && server.disks.length > 0) {
+                let maxDiskUsage = 0;
+                server.disks.forEach(d => {
+                    if (d.usage > maxDiskUsage) maxDiskUsage = d.usage;
+                });
+
+                if (maxDiskUsage > 90) score -= 30;
+                else if (maxDiskUsage > 80) score -= 15;
+            }
+
+            // Offline Penalty
+            if (server.status !== 'online') score = 0;
+
+            // Clamp Score
+            if (score < 0) score = 0;
+
+            const circle = document.getElementById('health-circle');
+            const scoreText = document.getElementById('health-score-text');
+            const labelText = document.getElementById('health-label');
+
+            // Update Text
+            scoreText.textContent = score + "%";
+            if (score >= 90) {
+                labelText.textContent = "EXCELLENT";
+                labelText.style.fill = "#10b981"; // Emerald
+                circle.setAttribute("stroke", "#10b981");
+            } else if (score >= 70) {
+                labelText.textContent = "GOOD";
+                labelText.style.fill = "#3b82f6"; // Blue
+                circle.setAttribute("stroke", "#3b82f6");
+            } else if (score >= 50) {
+                labelText.textContent = "WARNING";
+                labelText.style.fill = "#f97316"; // Orange
+                circle.setAttribute("stroke", "#f97316");
+            } else {
+                labelText.textContent = "CRITICAL";
+                labelText.style.fill = "#ef4444"; // Red
+                circle.setAttribute("stroke", "#ef4444");
+            }
+
+            // Update Circle Stroke Dasharray
+            // Circumference ~ 100 (for 15.9155 radius)
+            // stroke-dasharray="current, 100"
+            circle.setAttribute("stroke-dasharray", `${score}, 100`);
+
+            // Update Active Alerts
+            const alertsList = document.getElementById('alerts-list');
+            alertsList.innerHTML = '';
+            if (server.alerts && server.alerts.length > 0) {
+                server.alerts.forEach(alert => {
+                    const div = document.createElement('div');
+                    div.className = "flex items-start gap-3 p-3 rounded bg-white/5 border border-white/10";
+                    let iconColor = "text-yellow-400";
+                    if (alert.severity >= 4) iconColor = "text-red-400";
+                    else if (alert.severity === 3) iconColor = "text-orange-400";
+
+                    div.innerHTML = `
+                        <i class="fa-solid fa-triangle-exclamation mt-1 ${iconColor}"></i>
+                        <div class="text-sm text-gray-300">${alert.description}</div>
+                    `;
+                    alertsList.appendChild(div);
+                });
+            } else {
+                alertsList.innerHTML = `
+                    <div class="text-center text-gray-500 py-4">
+                        <i class="fa-solid fa-check-circle text-2xl mb-2 opacity-50"></i>
+                        <p>No active alerts</p>
+                    </div>
+                `;
+            }
+
+            // Update Disk Usage (List View)
+            const diskList = document.getElementById('disk-list');
+            diskList.innerHTML = '';
+            if (server.disks && server.disks.length > 0) {
+                server.disks.forEach(disk => {
+                    const div = document.createElement('div');
+                    div.className = "mb-4 last:mb-0";
+                    div.innerHTML = `
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-300 font-bold">${disk.label}</span>
+                            <span class="text-slate-400">${disk.usage.toFixed(1)}%</span>
+                        </div>
+                        <div class="w-full bg-slate-700 rounded-full h-2">
+                            <div class="bg-blue-500 h-2 rounded-full" style="width: ${disk.usage}%"></div>
+                        </div>
+                    `;
+                    diskList.appendChild(div);
+                });
+            } else {
+                diskList.innerHTML = '<div class="text-gray-500 text-center py-4">No disk data available</div>';
+            }
+
+            // Update System Info
+            const sysInfoList = document.getElementById('system-info-list');
+
+            // Format Uptime
+            let uptimeStr = "N/A";
+            if (server.uptime) {
+                const days = Math.floor(server.uptime / 86400);
+                const hours = Math.floor((server.uptime % 86400) / 3600);
+                const minutes = Math.floor((server.uptime % 3600) / 60);
+                uptimeStr = `${days}d ${hours}h ${minutes}m`;
+            }
+
+            sysInfoList.innerHTML = `
+                <div class="flex justify-between items-center border-b border-white/5 pb-2">
+                    <span class="text-gray-400">OS Version</span>
+                    <span class="text-white font-mono text-sm">${server.os_info || 'N/A'}</span>
+                </div>
+                <div class="flex justify-between items-center border-b border-white/5 pb-2">
+                    <span class="text-gray-400">Model</span>
+                    <span class="text-white font-mono text-sm">${server.model !== "N/A" ? server.model : (server.cpu_model || 'N/A')}</span>
+                </div>
+                <div class="flex justify-between items-center border-b border-white/5 pb-2">
+                    <span class="text-gray-400">Serial Number</span>
+                    <span class="text-white font-mono text-sm">${server.serial_number || 'N/A'}</span>
+                </div>
+                <div class="flex justify-between items-center border-b border-white/5 pb-2">
+                    <span class="text-gray-400">Kernel</span>
+                    <span class="text-white font-mono text-sm">${server.kernel_version || 'N/A'}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-400">System Uptime</span>
+                    <span class="text-emerald-400 font-mono text-sm font-bold">${uptimeStr}</span>
+                </div>
+            `;
+
+            // Update Charts
+            updateCharts(server.id);
+        }
+
+        async function updateCharts(hostId) {
+            // Fetch History Data
+            const [cpuData, netData, memData, latData, diskIoData] = await Promise.all([
+                fetch(`${API_URL}/history/${hostId}?metric=cpu`).then(r => r.json()),
+                fetch(`${API_URL}/history/${hostId}?metric=network`).then(r => r.json()),
+                fetch(`${API_URL}/history/${hostId}?metric=memory`).then(r => r.json()),
+                fetch(`${API_URL}/history/${hostId}?metric=icmppingsec`).then(r => r.json()),
+                fetch(`${API_URL}/history/${hostId}?metric=disk_io`).then(r => r.json())
+            ]);
+
+            // Hide Placeholders if data exists
+            if (cpuData.values.length > 0) document.getElementById('cpu-loader').classList.add('hidden');
+            else document.getElementById('cpu-loader').classList.remove('hidden');
+
+            if (netData.rx.length > 0) document.getElementById('network-loader').classList.add('hidden');
+            else document.getElementById('network-loader').classList.remove('hidden');
+
+            if (latData.values.length > 0) document.getElementById('latency-loader').classList.add('hidden');
+            else document.getElementById('latency-loader').classList.remove('hidden');
+
+            // Update CPU
+            charts.cpu.data.labels = cpuData.labels.map(t => new Date(t * 1000).toLocaleTimeString());
+            charts.cpu.data.datasets[0].data = cpuData.values;
+            charts.cpu.update();
+
+            const lastCpu = cpuData.values.length ? cpuData.values[cpuData.values.length - 1] : 0;
+            document.getElementById('cpu-value').innerHTML = lastCpu.toFixed(0) + '% <i class="fa-solid fa-microchip ml-1"></i>';
+
+            // Update Network
+            charts.network.data.labels = netData.labels.map(t => new Date(t * 1000).toLocaleTimeString());
+            // Convert Bytes to Mbps (Bytes * 8 / 1,000,000)
+            charts.network.data.datasets[0].data = netData.rx.map(v => (v * 8 / 1000000).toFixed(2));
+            charts.network.data.datasets[1].data = netData.tx.map(v => (v * 8 / 1000000).toFixed(2));
+            charts.network.update();
+
+            // Update Memory
+            const lastMem = memData.values.length ? memData.values[memData.values.length - 1] : 0;
+            charts.memory.data.datasets[0].data = [lastMem, 100 - lastMem];
+            charts.memory.update();
+            document.getElementById('ram-value').textContent = lastMem.toFixed(0) + '%';
+
+            // Update Latency (Line Chart)
+            const lastLat = latData.values.length ? (latData.values[latData.values.length - 1] * 1000) : 0; // s to ms
+
+            // Fix: Show decimals for low latency
+            const latDisplay = lastLat < 1 ? lastLat.toFixed(2) : Math.round(lastLat);
+            document.getElementById('latency-value').innerHTML = latDisplay + 'ms <i class="fa-solid fa-bolt text-yellow-400 ml-1"></i>';
+
+            charts.latency.data.labels = latData.labels.map(t => new Date(t * 1000).toLocaleTimeString());
+            charts.latency.data.datasets[0].data = latData.values.map(v => v * 1000); // s to ms
+            charts.latency.update();
+
+            // Update Disk I/O
+            charts.diskIo.data.labels = diskIoData.labels.map(t => new Date(t * 1000).toLocaleTimeString());
+            // Convert to MB/s
+            charts.diskIo.data.datasets[0].data = diskIoData.read.map(v => (v / 1048576).toFixed(2));
+            charts.diskIo.data.datasets[1].data = diskIoData.write.map(v => (v / 1048576).toFixed(2));
+            charts.diskIo.update();
+        }
+    </script>
+</body>
+
+</html>
