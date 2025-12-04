@@ -400,6 +400,103 @@
             </div>
         </div>
 
+        <!-- WIFI Dashboard Content (AP Detail) -->
+        <div id="wifi-dashboard-content"
+            class="flex-1 p-8 overflow-y-auto grid grid-cols-4 gap-6 grid-rows-[200px_200px_300px] hidden">
+
+            <!-- Row 1: Health & Clients -->
+            <div class="glass-panel rounded-2xl p-6 col-span-2 flex flex-col items-center justify-center relative">
+                <h3 class="absolute top-6 left-6 text-sm font-bold text-cyan-400 tracking-wider">AP HEALTH SCORE</h3>
+                <div class="relative w-full h-full flex items-center justify-center">
+                    <svg viewBox="0 0 36 36" class="circular-chart">
+                        <path class="circle-bg"
+                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        <path class="circle" id="wifi-health-circle" stroke-dasharray="0, 100"
+                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                            stroke="#10b981" />
+                        <text x="18" y="20.35" class="percentage" id="wifi-health-score-text">0%</text>
+                        <text x="18" y="25" class="label" id="wifi-health-label">EXCELLENT</text>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="glass-panel rounded-2xl p-6 col-span-2 flex flex-col items-center justify-center">
+                <div class="w-16 h-16 rounded-full bg-cyan-500/20 flex items-center justify-center mb-4">
+                    <i class="fa-solid fa-users text-3xl text-cyan-400"></i>
+                </div>
+                <div class="text-5xl font-bold text-white mb-2" id="wifi-clients">0</div>
+                <div class="text-sm font-bold text-slate-400 tracking-wider">CONNECTED CLIENTS</div>
+            </div>
+
+            <!-- Row 2: Resources -->
+            <div class="glass-panel rounded-2xl p-5 col-span-1 flex flex-col">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="text-sm font-bold text-slate-400 tracking-wider">CPU Load</h3>
+                    <span class="text-lg font-bold text-cyan-400" id="wifi-cpu-value">0%</span>
+                </div>
+                <div class="flex-1 w-full relative">
+                    <canvas id="wifiCpuChart"></canvas>
+                </div>
+            </div>
+
+            <div class="glass-panel rounded-2xl p-5 col-span-1 flex flex-col items-center justify-center relative">
+                <h3 class="absolute top-5 left-5 text-sm font-bold text-slate-400 tracking-wider">Memory</h3>
+                <div class="relative w-32 h-32">
+                    <canvas id="wifiMemoryChart"></canvas>
+                    <div class="absolute inset-0 flex items-center justify-center flex-col pointer-events-none">
+                        <span class="text-xl font-bold text-white" id="wifi-ram-value">0%</span>
+                        <span class="text-[10px] text-slate-400">USED</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-panel rounded-2xl p-5 col-span-1 flex flex-col items-center justify-center">
+                <div class="text-sm font-bold text-slate-400 tracking-wider mb-2">UPTIME</div>
+                <div class="text-2xl font-bold text-emerald-400 text-center" id="wifi-uptime">0d 0h 0m</div>
+            </div>
+
+            <div class="glass-panel rounded-2xl p-5 col-span-1 flex flex-col">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="text-sm font-bold text-slate-400 tracking-wider">Network Traffic</h3>
+                </div>
+                <div class="flex-1 w-full relative">
+                    <canvas id="wifiNetworkChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Row 3: Info & History -->
+            <div class="glass-panel rounded-2xl p-6 col-span-1 flex flex-col">
+                <h3 class="text-sm font-bold text-slate-400 tracking-wider mb-4">RADIO CONFIGURATION</h3>
+                <div class="space-y-4">
+                    <div class="p-3 rounded bg-slate-800/50 border border-slate-700">
+                        <div class="flex items-center gap-2 mb-1">
+                            <i class="fa-solid fa-wifi text-cyan-400"></i>
+                            <span class="text-sm font-bold text-white">2.4 GHz</span>
+                        </div>
+                        <div class="text-xs text-slate-400">Channel: Auto</div>
+                        <div class="text-xs text-slate-400">Width: 20 MHz</div>
+                        <div class="text-xs text-slate-400">Tx Power: Medium</div>
+                    </div>
+                    <div class="p-3 rounded bg-slate-800/50 border border-slate-700">
+                        <div class="flex items-center gap-2 mb-1">
+                            <i class="fa-solid fa-wifi text-purple-400"></i>
+                            <span class="text-sm font-bold text-white">5 GHz</span>
+                        </div>
+                        <div class="text-xs text-slate-400">Channel: Auto</div>
+                        <div class="text-xs text-slate-400">Width: 40 MHz</div>
+                        <div class="text-xs text-slate-400">Tx Power: High</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-panel rounded-2xl p-6 col-span-3 flex flex-col">
+                <h3 class="text-sm font-bold text-slate-400 tracking-wider mb-4">TRAFFIC HISTORY</h3>
+                <div class="flex-1 w-full h-full relative">
+                    <canvas id="wifiTrafficHistoryChart"></canvas>
+                </div>
+            </div>
+        </div>
+
         <!-- Empty State (Hidden) -->
         <div id="empty-state" class="flex-1 flex flex-col items-center justify-center text-slate-500 hidden">
             <i class="fa-solid fa-server text-6xl mb-4 opacity-20"></i>
@@ -807,6 +904,117 @@
                     interaction: { mode: 'index', intersect: false }
                 }
             });
+
+            // --- WIFI Charts ---
+
+            // Wifi CPU
+            const ctxWifiCpu = document.getElementById('wifiCpuChart').getContext('2d');
+            charts.wifiCpu = new Chart(ctxWifiCpu, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { display: false }, y: { display: false, min: 0, max: 100 } }
+                }
+            });
+
+            // Wifi Memory
+            const ctxWifiMem = document.getElementById('wifiMemoryChart').getContext('2d');
+            charts.wifiMemory = new Chart(ctxWifiMem, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Used', 'Free'],
+                    datasets: [{
+                        data: [0, 100],
+                        backgroundColor: ['#f472b6', 'rgba(255, 255, 255, 0.05)'],
+                        borderWidth: 0,
+                        cutout: '80%'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } }
+                }
+            });
+
+            // Wifi Network (Sparkline)
+            const ctxWifiNet = document.getElementById('wifiNetworkChart').getContext('2d');
+            charts.wifiNetwork = new Chart(ctxWifiNet, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        borderColor: '#22d3ee',
+                        backgroundColor: 'rgba(34, 211, 238, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { display: false }, y: { display: false } }
+                }
+            });
+
+            // Wifi Traffic History
+            const ctxWifiTraffic = document.getElementById('wifiTrafficHistoryChart').getContext('2d');
+            charts.wifiTraffic = new Chart(ctxWifiTraffic, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Download (Mbps)',
+                            data: [],
+                            borderColor: '#22d3ee',
+                            backgroundColor: 'rgba(34, 211, 238, 0.2)',
+                            fill: true,
+                            tension: 0.4,
+                            borderWidth: 2,
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'Upload (Mbps)',
+                            data: [],
+                            borderColor: '#c084fc',
+                            backgroundColor: 'rgba(192, 132, 252, 0.2)',
+                            fill: true,
+                            tension: 0.4,
+                            borderWidth: 2,
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: true, labels: { color: '#94a3b8' } } },
+                    scales: {
+                        x: { display: true, grid: gridOptions, ticks: { color: '#64748b', maxTicksLimit: 8 } },
+                        y: { display: true, grid: gridOptions, ticks: { color: '#64748b' } }
+                    },
+                    interaction: { mode: 'index', intersect: false }
+                }
+            });
         }
 
         // --- Data Fetching ---
@@ -942,17 +1150,79 @@
                 }
             }
 
-            // Show Dashboard
+            // Show Dashboard based on Type
             document.getElementById('empty-state').classList.add('hidden');
             document.getElementById('overview-content').classList.add('hidden');
-            document.getElementById('dashboard-content').classList.remove('hidden');
+
+            const isWifi = server.type === 'AP' || server.group === 'Access Points' || (server.type && server.type.toLowerCase().includes('wifi'));
+
+            if (isWifi) {
+                document.getElementById('dashboard-content').classList.add('hidden');
+                document.getElementById('wifi-dashboard-content').classList.remove('hidden');
+                loadWifiDetail(server);
+            } else {
+                document.getElementById('wifi-dashboard-content').classList.add('hidden');
+                document.getElementById('dashboard-content').classList.remove('hidden');
+                loadServerDetail(server);
+            }
 
             // Update Header Visibility
             document.getElementById('overview-stats').classList.add('hidden');
             document.getElementById('detail-ip').classList.remove('hidden');
             document.getElementById('detail-os').classList.remove('hidden');
+        }
 
-            loadServerDetail(server);
+        function loadWifiDetail(server) {
+            // Update Header
+            document.getElementById('detail-hostname').textContent = server.name;
+            document.getElementById('detail-ip').innerHTML = `<i class="fa-solid fa-network-wired"></i> ${server.ip}`;
+            document.getElementById('detail-os').innerHTML = `${getOsIcon(server)} ${server.os_info || 'Unifi OS'}`;
+
+            // Update Status Badge
+            const statusBadge = document.getElementById('detail-status-badge');
+            if (server.status === 'online') {
+                statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-500 text-white shadow-[0_0_10px_rgba(16,185,129,0.4)]";
+                statusBadge.textContent = "ONLINE";
+            } else {
+                statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-red-500 text-white";
+                statusBadge.textContent = "OFFLINE";
+            }
+
+            // Health Score
+            let score = 100;
+            if (server.cpu > 80) score -= 20;
+            if (server.ram > 80) score -= 20;
+            if (server.status !== 'online') score = 0;
+
+            const circle = document.getElementById('wifi-health-circle');
+            const scoreText = document.getElementById('wifi-health-score-text');
+            const labelText = document.getElementById('wifi-health-label');
+
+            scoreText.textContent = score + "%";
+            circle.setAttribute("stroke-dasharray", `${score}, 100`);
+
+            if (score >= 90) {
+                labelText.textContent = "EXCELLENT";
+                labelText.style.fill = "#10b981";
+                circle.setAttribute("stroke", "#10b981");
+            } else if (score >= 70) {
+                labelText.textContent = "GOOD";
+                labelText.style.fill = "#3b82f6";
+                circle.setAttribute("stroke", "#3b82f6");
+            } else {
+                labelText.textContent = "ATTENTION";
+                labelText.style.fill = "#ef4444";
+                circle.setAttribute("stroke", "#ef4444");
+            }
+
+            // Clients
+            document.getElementById('wifi-clients').textContent = server.client_count || 0;
+
+            // Uptime
+            document.getElementById('wifi-uptime').textContent = server.uptime_str || "N/A";
+
+            // Update Charts
+            updateWifiCharts(server.id);
         }
 
         function loadServerDetail(server) {
@@ -1180,6 +1450,38 @@
             charts.diskIo.data.datasets[0].data = diskIoData.read.map(v => (v / 1048576).toFixed(2));
             charts.diskIo.data.datasets[1].data = diskIoData.write.map(v => (v / 1048576).toFixed(2));
             charts.diskIo.update();
+        }
+
+        async function updateWifiCharts(hostId) {
+            const [cpuData, netData, memData] = await Promise.all([
+                fetch(`${API_URL}/history/${hostId}?metric=cpu`).then(r => r.json()),
+                fetch(`${API_URL}/history/${hostId}?metric=network`).then(r => r.json()),
+                fetch(`${API_URL}/history/${hostId}?metric=memory`).then(r => r.json())
+            ]);
+
+            // CPU
+            charts.wifiCpu.data.labels = cpuData.labels.map(t => new Date(t * 1000).toLocaleTimeString());
+            charts.wifiCpu.data.datasets[0].data = cpuData.values;
+            charts.wifiCpu.update();
+            const lastCpu = cpuData.values.length ? cpuData.values[cpuData.values.length - 1] : 0;
+            document.getElementById('wifi-cpu-value').textContent = lastCpu.toFixed(0) + '%';
+
+            // Memory
+            const lastMem = memData.values.length ? memData.values[memData.values.length - 1] : 0;
+            charts.wifiMemory.data.datasets[0].data = [lastMem, 100 - lastMem];
+            charts.wifiMemory.update();
+            document.getElementById('wifi-ram-value').textContent = lastMem.toFixed(0) + '%';
+
+            // Network (Sparkline)
+            charts.wifiNetwork.data.labels = netData.labels.map(t => new Date(t * 1000).toLocaleTimeString());
+            charts.wifiNetwork.data.datasets[0].data = netData.rx.map(v => (v * 8 / 1000000).toFixed(2));
+            charts.wifiNetwork.update();
+
+            // Traffic History (Area)
+            charts.wifiTraffic.data.labels = netData.labels.map(t => new Date(t * 1000).toLocaleTimeString());
+            charts.wifiTraffic.data.datasets[0].data = netData.rx.map(v => (v * 8 / 1000000).toFixed(2));
+            charts.wifiTraffic.data.datasets[1].data = netData.tx.map(v => (v * 8 / 1000000).toFixed(2));
+            charts.wifiTraffic.update();
         }
     </script>
 </body>

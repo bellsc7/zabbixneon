@@ -49,6 +49,7 @@ class ServerMetric(BaseModel):
     kernel_version: Optional[str] = "N/A"
     client_count: Optional[int] = 0
     model: Optional[str] = "N/A"
+    uptime_str: Optional[str] = "N/A"
 
 class ZabbixAPI:
     def __init__(self, url, user, password):
@@ -116,7 +117,10 @@ class ZabbixAPI:
             "unifi.cpu", "unifi.memory", "system.cpu.util", "system.cpu.load", "vm.memory.util", "vm.memory.pused",
             "ifInOctets", "ifOutOctets", "system.uname", "system.sw.os",
             "cpuLoad.0", "unifiIfRxBytes.1", "unifiIfTxBytes.1", "unifiApSystemVersion.0",
-            "unifiVapNumStations", "unifiApSystemModel.0"
+            "unifiVapNumStations", "unifiApSystemModel.0", "unifi.ap.users", "dot11AssociatedStationCount",
+            "unifi.client.count", "unifi.radio.util", "unifi.radio.channel",
+            "sysUpTime.0", "sysUpTimeInstance", 
+            "memTotalReal.0", "memTotal.0", "memAvailReal.0", "memFree.0", "memBuffer.0", "memCached.0", "vm.memory.free[0]", "vm.memory.total[0]"
         ]
         
         return self._request("item.get", {
@@ -337,6 +341,21 @@ def get_servers():
                 if pavail is not None:
                     ram_val = 100.0 - pavail
 
+            # Fallback: SNMP Total/Free Calculation (Ubiquiti/Linux SNMP)
+            if ram_val is None:
+                mem_total_keys = ['vm.memory.total[0]', 'memTotalReal.0', 'memTotal.0']
+                mem_free_keys = ['vm.memory.free[0]', 'memAvailReal.0', 'memFree.0', 'memBuffer.0', 'memCached.0']
+                
+                mem_total = get_metric_value(h_items, mem_total_keys)
+                mem_free = get_metric_value(h_items, mem_free_keys)
+                
+                if mem_total and mem_total > 0:
+                    # If mem_free is None, assume 0 (risky but better than nothing if total exists?) 
+                    # Actually better to require free or assume 0 if we have total.
+                    current_free = mem_free if mem_free is not None else 0
+                    used = mem_total - current_free
+                    ram_val = (used / mem_total) * 100.0
+
             # --- Disk Logic (Multi-Drive) ---
             disks = []
             if dev_type not in ['AP', 'Switch'] and not is_ubiquiti:
@@ -386,8 +405,29 @@ def get_servers():
                 # If ping_val is 0 or None, latency remains None (Offline/Unknown)
 
             # --- Uptime Logic ---
-            uptime_val = get_metric_value(h_items, ['system.uptime'])
+            uptime_val = get_metric_value(h_items, ['system.uptime', 'sysUpTime.0', 'sysUpTimeInstance'])
             if uptime_val is not None:
+                # Check if it's likely TimeTicks (1/100s)
+                # If value is huge and key is sysUpTime, it might be ticks.
+                # But usually Zabbix converts if units are 'uptime'. 
+                # If we assume raw SNMP:
+                # sysUpTime is 32-bit counter in 1/100s.
+                # If we see sysUpTime.0 specifically, let's check.
+                # For now, treat as seconds unless it's clearly ticks? 
+                # Actually, standard Zabbix system.uptime is seconds.
+                # sysUpTime.0 from SNMP agent is ticks.
+                # Let's check which key matched.
+                matched_key = None
+                for k in ['system.uptime', 'sysUpTime.0', 'sysUpTimeInstance']:
+                    if k in h_items and h_items[k] is not None:
+                        matched_key = k
+                        break
+                
+                uptime_val = float(uptime_val)
+                if matched_key and 'sysUpTime' in matched_key:
+                    # SNMP Timeticks are 1/100th of a second
+                    uptime_val = uptime_val / 100.0
+                
                 uptime_val = int(uptime_val)
 
             # --- Status Logic ---
@@ -461,10 +501,12 @@ def get_servers():
             # --- Unifi Extra Logic ---
             client_count = 0
             model = "N/A"
-            
-            # Sum unifiVapNumStations
+            uptime_str = "N/A"
+
+            # Sum unifiVapNumStations and other client count keys
             for item in h_items_list:
-                if "unifiVapNumStations" in item['key_']:
+                k = item['key_']
+                if any(x in k for x in ['unifiVapNumStations', 'unifi.ap.users', 'dot11AssociatedStationCount', 'unifi.client.count']):
                     try:
                         client_count += int(item['lastvalue'])
                     except:
@@ -478,6 +520,17 @@ def get_servers():
                 if cpu_model == "N/A":
                     cpu_model = model_val
 
+            # Format Uptime String
+            if uptime_val:
+                days = uptime_val // 86400
+                hours = (uptime_val % 86400) // 3600
+                minutes = (uptime_val % 3600) // 60
+                uptime_str = f"{days}d {hours}h {minutes}m"
+
+            # Fix Disk for APs
+            if dev_type == 'AP' or is_ubiquiti:
+                disks = []
+
             results.append(ServerMetric(
                 id=hid,
                 name=h_data['name'],
@@ -489,6 +542,7 @@ def get_servers():
                 disks=disks,
                 latency=round(latency_val, 2) if latency_val is not None else None,
                 uptime=uptime_val,
+                uptime_str=uptime_str,
                 alerts=host_problems.get(hid, []),
                 status=status,
                 os_info=os_info,
