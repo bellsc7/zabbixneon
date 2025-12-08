@@ -497,6 +497,120 @@
             </div>
         </div>
 
+        <!-- Firewall Dashboard Content (FortiGate) -->
+        <div id="firewall-dashboard-content"
+            class="flex-1 p-8 overflow-y-auto grid grid-cols-4 gap-6 grid-rows-[200px_200px_300px] hidden">
+
+            <!-- Row 1: Health, Sessions, Throughput -->
+            <div class="glass-panel rounded-2xl p-6 col-span-1 flex flex-col items-center justify-center relative">
+                <h3 class="absolute top-6 left-6 text-sm font-bold text-cyan-400 tracking-wider">HEALTH SCORE</h3>
+                <div class="relative w-full h-full flex items-center justify-center">
+                    <svg viewBox="0 0 36 36" class="circular-chart">
+                        <path class="circle-bg"
+                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        <path class="circle" id="fw-health-circle" stroke-dasharray="0, 100"
+                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                            stroke="#10b981" />
+                        <text x="18" y="20.35" class="percentage" id="fw-health-score-text">0%</text>
+                        <text x="18" y="25" class="label" id="fw-health-label">OPTIMAL</text>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="glass-panel rounded-2xl p-6 col-span-1 flex flex-col items-center justify-center">
+                <div class="w-12 h-12 rounded-full bg-orange-500/20 flex items-center justify-center mb-3">
+                    <i class="fa-solid fa-network-wired text-2xl text-orange-400"></i>
+                </div>
+                <div class="text-4xl font-bold text-white mb-1" id="fw-sessions">0</div>
+                <div class="text-xs font-bold text-slate-400 tracking-wider">ACTIVE SESSIONS</div>
+            </div>
+
+            <div class="glass-panel rounded-2xl p-6 col-span-2 flex flex-col">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="text-sm font-bold text-slate-400 tracking-wider">WAN THROUGHPUT</h3>
+                    <div class="flex gap-4 text-xs">
+                        <span class="text-cyan-400"><i class="fa-solid fa-arrow-down"></i> In</span>
+                        <span class="text-purple-400"><i class="fa-solid fa-arrow-up"></i> Out</span>
+                    </div>
+                </div>
+                <div class="flex-1 w-full relative">
+                    <canvas id="fwThroughputChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Row 2: Resources & Threat -->
+            <div class="glass-panel rounded-2xl p-5 col-span-1 flex flex-col">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="text-sm font-bold text-slate-400 tracking-wider">CPU Load</h3>
+                    <span class="text-lg font-bold text-cyan-400" id="fw-cpu-value">0%</span>
+                </div>
+                <div class="flex-1 w-full relative">
+                    <canvas id="fwCpuChart"></canvas>
+                </div>
+            </div>
+
+            <div class="glass-panel rounded-2xl p-5 col-span-1 flex flex-col items-center justify-center relative">
+                <h3 class="absolute top-5 left-5 text-sm font-bold text-slate-400 tracking-wider">Memory</h3>
+                <div class="relative w-32 h-32">
+                    <canvas id="fwMemoryChart"></canvas>
+                    <div class="absolute inset-0 flex items-center justify-center flex-col pointer-events-none">
+                        <span class="text-xl font-bold text-white" id="fw-ram-value">0%</span>
+                        <span class="text-[10px] text-slate-400">USED</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-panel rounded-2xl p-5 col-span-1 flex flex-col items-center justify-center">
+                <div class="text-sm font-bold text-slate-400 tracking-wider mb-2">UPTIME</div>
+                <div class="text-xl font-bold text-emerald-400 text-center" id="fw-uptime">0d 0h 0m</div>
+            </div>
+
+            <div
+                class="glass-panel rounded-2xl p-5 col-span-1 flex flex-col items-center justify-center border-l-4 border-emerald-500 bg-emerald-900/10">
+                <div class="text-sm font-bold text-emerald-400 tracking-wider mb-2">THREAT LEVEL</div>
+                <div class="text-3xl font-bold text-white">LOW</div>
+                <div class="text-xs text-emerald-500/70 mt-1">No intrusions detected</div>
+            </div>
+
+            <!-- Row 3: Interfaces & History -->
+            <div class="glass-panel rounded-2xl p-6 col-span-1 flex flex-col">
+                <h3 class="text-sm font-bold text-slate-400 tracking-wider mb-4">INTERFACE STATUS</h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center p-2 rounded bg-slate-800/50">
+                        <span class="text-sm text-white">WAN1</span>
+                        <span class="flex items-center gap-2 text-xs text-emerald-400">
+                            <div class="w-2 h-2 rounded-full bg-emerald-500"></div> UP
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center p-2 rounded bg-slate-800/50">
+                        <span class="text-sm text-white">WAN2</span>
+                        <span class="flex items-center gap-2 text-xs text-slate-500">
+                            <div class="w-2 h-2 rounded-full bg-slate-600"></div> DOWN
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center p-2 rounded bg-slate-800/50">
+                        <span class="text-sm text-white">DMZ</span>
+                        <span class="flex items-center gap-2 text-xs text-emerald-400">
+                            <div class="w-2 h-2 rounded-full bg-emerald-500"></div> UP
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center p-2 rounded bg-slate-800/50">
+                        <span class="text-sm text-white">LAN</span>
+                        <span class="flex items-center gap-2 text-xs text-emerald-400">
+                            <div class="w-2 h-2 rounded-full bg-emerald-500"></div> UP
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-panel rounded-2xl p-6 col-span-3 flex flex-col">
+                <h3 class="text-sm font-bold text-slate-400 tracking-wider mb-4">SESSION HISTORY</h3>
+                <div class="flex-1 w-full h-full relative">
+                    <canvas id="fwSessionHistoryChart"></canvas>
+                </div>
+            </div>
+        </div>
+
         <!-- Empty State (Hidden) -->
         <div id="empty-state" class="flex-1 flex flex-col items-center justify-center text-slate-500 hidden">
             <i class="fa-solid fa-server text-6xl mb-4 opacity-20"></i>
@@ -1015,6 +1129,118 @@
                     interaction: { mode: 'index', intersect: false }
                 }
             });
+
+            // --- Firewall Charts ---
+
+            // FW CPU
+            const ctxFwCpu = document.getElementById('fwCpuChart').getContext('2d');
+            charts.fwCpu = new Chart(ctxFwCpu, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { display: false }, y: { display: false, min: 0, max: 100 } }
+                }
+            });
+
+            // FW Memory
+            const ctxFwMem = document.getElementById('fwMemoryChart').getContext('2d');
+            charts.fwMemory = new Chart(ctxFwMem, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Used', 'Free'],
+                    datasets: [{
+                        data: [0, 100],
+                        backgroundColor: ['#f472b6', 'rgba(255, 255, 255, 0.05)'],
+                        borderWidth: 0,
+                        cutout: '80%'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } }
+                }
+            });
+
+            // FW Throughput
+            const ctxFwTp = document.getElementById('fwThroughputChart').getContext('2d');
+            charts.fwThroughput = new Chart(ctxFwTp, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'In',
+                            data: [],
+                            borderColor: '#22d3ee',
+                            backgroundColor: 'rgba(34, 211, 238, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            borderWidth: 2,
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'Out',
+                            data: [],
+                            borderColor: '#c084fc',
+                            backgroundColor: 'rgba(192, 132, 252, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            borderWidth: 2,
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { display: false }, y: { display: false } }
+                }
+            });
+
+            // FW Session History
+            const ctxFwSess = document.getElementById('fwSessionHistoryChart').getContext('2d');
+            charts.fwSession = new Chart(ctxFwSess, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Active Sessions',
+                        data: [],
+                        borderColor: '#f97316',
+                        backgroundColor: 'rgba(249, 115, 22, 0.2)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: true, labels: { color: '#94a3b8' } } },
+                    scales: {
+                        x: { display: true, grid: gridOptions, ticks: { color: '#64748b', maxTicksLimit: 8 } },
+                        y: { display: true, grid: gridOptions, ticks: { color: '#64748b' } }
+                    },
+                    interaction: { mode: 'index', intersect: false }
+                }
+            });
         }
 
         // --- Data Fetching ---
@@ -1156,12 +1382,23 @@
 
             const isWifi = server.type === 'AP' || server.group === 'Access Points' || (server.type && server.type.toLowerCase().includes('wifi'));
 
+            const isFirewall = server.type === 'Firewall' || (server.group && server.group.includes('Firewall'));
+
+            // Reset all views
+            document.getElementById('dashboard-content').classList.add('hidden');
+            document.getElementById('wifi-dashboard-content').classList.add('hidden');
+            document.getElementById('firewall-dashboard-content').classList.add('hidden');
+
             if (isWifi) {
-                document.getElementById('dashboard-content').classList.add('hidden');
+                console.log("Rendering WiFi View for:", server.name);
                 document.getElementById('wifi-dashboard-content').classList.remove('hidden');
                 loadWifiDetail(server);
+            } else if (isFirewall) {
+                console.log("Rendering Firewall View for:", server.name);
+                document.getElementById('firewall-dashboard-content').classList.remove('hidden');
+                loadFirewallDetail(server);
             } else {
-                document.getElementById('wifi-dashboard-content').classList.add('hidden');
+                console.log("Rendering Standard View for:", server.name);
                 document.getElementById('dashboard-content').classList.remove('hidden');
                 loadServerDetail(server);
             }
@@ -1170,6 +1407,59 @@
             document.getElementById('overview-stats').classList.add('hidden');
             document.getElementById('detail-ip').classList.remove('hidden');
             document.getElementById('detail-os').classList.remove('hidden');
+        }
+
+        function loadFirewallDetail(server) {
+            // Update Header
+            document.getElementById('detail-hostname').textContent = server.name;
+            document.getElementById('detail-ip').innerHTML = `<i class="fa-solid fa-shield-halved"></i> ${server.ip}`;
+            document.getElementById('detail-os').innerHTML = `${getOsIcon(server)} ${server.os_info || 'FortiOS'}`;
+
+            // Update Status Badge
+            const statusBadge = document.getElementById('detail-status-badge');
+            if (server.status === 'online') {
+                statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-500 text-white shadow-[0_0_10px_rgba(16,185,129,0.4)]";
+                statusBadge.textContent = "SECURE";
+            } else {
+                statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-red-500 text-white";
+                statusBadge.textContent = "OFFLINE";
+            }
+
+            // Health Score
+            let score = 100;
+            if (server.cpu > 80) score -= 20;
+            if (server.ram > 80) score -= 20;
+            if (server.status !== 'online') score = 0;
+
+            const circle = document.getElementById('fw-health-circle');
+            const scoreText = document.getElementById('fw-health-score-text');
+            const labelText = document.getElementById('fw-health-label');
+
+            scoreText.textContent = score + "%";
+            circle.setAttribute("stroke-dasharray", `${score}, 100`);
+
+            if (score >= 90) {
+                labelText.textContent = "OPTIMAL";
+                labelText.style.fill = "#10b981";
+                circle.setAttribute("stroke", "#10b981");
+            } else if (score >= 70) {
+                labelText.textContent = "GOOD";
+                labelText.style.fill = "#3b82f6";
+                circle.setAttribute("stroke", "#3b82f6");
+            } else {
+                labelText.textContent = "RISK";
+                labelText.style.fill = "#ef4444";
+                circle.setAttribute("stroke", "#ef4444");
+            }
+
+            // Sessions
+            document.getElementById('fw-sessions').textContent = server.sessions ? server.sessions.toLocaleString() : 0;
+
+            // Uptime
+            document.getElementById('fw-uptime').textContent = server.uptime_str || "N/A";
+
+            // Update Charts
+            updateFirewallCharts(server.id);
         }
 
         function loadWifiDetail(server) {
@@ -1482,6 +1772,39 @@
             charts.wifiTraffic.data.datasets[0].data = netData.rx.map(v => (v * 8 / 1000000).toFixed(2));
             charts.wifiTraffic.data.datasets[1].data = netData.tx.map(v => (v * 8 / 1000000).toFixed(2));
             charts.wifiTraffic.update();
+        }
+
+        async function updateFirewallCharts(hostId) {
+            const [cpuData, netData, memData, sessionData] = await Promise.all([
+                fetch(`${API_URL}/history/${hostId}?metric=cpu`).then(r => r.json()),
+                fetch(`${API_URL}/history/${hostId}?metric=network`).then(r => r.json()),
+                fetch(`${API_URL}/history/${hostId}?metric=memory`).then(r => r.json()),
+                fetch(`${API_URL}/history/${hostId}?metric=sessions`).then(r => r.json())
+            ]);
+
+            // CPU
+            charts.fwCpu.data.labels = cpuData.labels.map(t => new Date(t * 1000).toLocaleTimeString());
+            charts.fwCpu.data.datasets[0].data = cpuData.values;
+            charts.fwCpu.update();
+            const lastCpu = cpuData.values.length ? cpuData.values[cpuData.values.length - 1] : 0;
+            document.getElementById('fw-cpu-value').textContent = lastCpu.toFixed(0) + '%';
+
+            // Memory
+            const lastMem = memData.values.length ? memData.values[memData.values.length - 1] : 0;
+            charts.fwMemory.data.datasets[0].data = [lastMem, 100 - lastMem];
+            charts.fwMemory.update();
+            document.getElementById('fw-ram-value').textContent = lastMem.toFixed(0) + '%';
+
+            // Throughput (Sparkline)
+            charts.fwThroughput.data.labels = netData.labels.map(t => new Date(t * 1000).toLocaleTimeString());
+            charts.fwThroughput.data.datasets[0].data = netData.rx.map(v => (v * 8 / 1000000).toFixed(2));
+            charts.fwThroughput.data.datasets[1].data = netData.tx.map(v => (v * 8 / 1000000).toFixed(2));
+            charts.fwThroughput.update();
+
+            // Session History
+            charts.fwSession.data.labels = sessionData.labels.map(t => new Date(t * 1000).toLocaleTimeString());
+            charts.fwSession.data.datasets[0].data = sessionData.values;
+            charts.fwSession.update();
         }
     </script>
 </body>
